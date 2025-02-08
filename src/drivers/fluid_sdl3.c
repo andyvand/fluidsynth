@@ -161,7 +161,7 @@ SDLAudioCallback(void *data, SDL_AudioStream *stream, int add_len, int len)
 
     if (dev->buffer == NULL)
     {
-        FLUID_LOG(FLUID_WARN, "Audio callback buffer allocation has failed");
+        FLUID_LOG(FLUID_WARN, "Audio callback buffer is NULL");
         return;
     }
 
@@ -171,11 +171,6 @@ SDLAudioCallback(void *data, SDL_AudioStream *stream, int add_len, int len)
         dev->write_ptr(dev->synth, buf_len / dev->frame_size, dev->buffer, 0, 2, buffer, 1, 2);
         SDL_PutAudioStreamData(stream, dev->buffer, buf_len);
         add_len -= buf_len;  /* subtract what we've just fed the stream. */
-    }
-
-    if (buffer != NULL)
-    {
-        SDL_free(buffer);
     }
 }
 
