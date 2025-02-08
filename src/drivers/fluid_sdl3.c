@@ -53,6 +53,7 @@ typedef struct
 
     int frame_size;
     int period_size;
+    unsigned int *buffer;
 } fluid_sdl3_audio_driver_t;
 
 const char *SDLC_GetAudioDeviceName(int idx, int iscapture, fluid_sdl3_audio_driver_t *dev)
@@ -156,10 +157,9 @@ static void
 SDLAudioCallback(void *data, SDL_AudioStream *stream, int add_len, int len)
 {
     fluid_sdl3_audio_driver_t *dev = (fluid_sdl3_audio_driver_t *)data;
-    unsigned int *buffer = SDL_malloc(dev->period_size * dev->frame_size);
     int buf_len = 0;
 
-    if (buffer == NULL)
+    if (dev->buffer == NULL)
     {
         FLUID_LOG(FLUID_WARN, "Audio callback buffer allocation has failed");
         return;
@@ -168,8 +168,8 @@ SDLAudioCallback(void *data, SDL_AudioStream *stream, int add_len, int len)
     while (add_len > 0)
     {
         buf_len = SDL_min(add_len, dev->period_size * dev->frame_size);
-        dev->write_ptr(dev->synth, buf_len / dev->frame_size, buffer, 0, 2, buffer, 1, 2);
-        SDL_PutAudioStreamData(stream, buffer, buf_len);
+        dev->write_ptr(dev->synth, buf_len / dev->frame_size, dev->buffer, 0, 2, buffer, 1, 2);
+        SDL_PutAudioStreamData(stream, dev->buffer, buf_len);
         add_len -= buf_len;  /* subtract what we've just fed the stream. */
     }
 
@@ -405,6 +405,7 @@ new_fluid_sdl3_audio_driver(fluid_settings_t *settings, fluid_synth_t *synth)
         dev->write_ptr = write_ptr;
         dev->frame_size = sample_size * aspec.channels;
         dev->period_size = period_size;
+        dev->buffer = SDL_malloc(dev->period_size * dev->frame_size);
 
         /* Open audio device */
         dev->stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &aspec, SDLAudioCallback, dev);
@@ -438,6 +439,11 @@ void delete_fluid_sdl3_audio_driver(fluid_audio_driver_t *d)
             /* Stop audio and close */
             SDL_PauseAudioDevice(dev->devid);
             SDL_CloseAudioDevice(dev->devid);
+        }
+
+        if (dev->buffer != NULL)
+        {
+            SDL_free(dev->buffer);
         }
 
         FLUID_FREE(dev);
