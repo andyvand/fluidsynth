@@ -159,16 +159,10 @@ SDLAudioCallback(void *data, SDL_AudioStream *stream, int add_len, int len)
     fluid_sdl3_audio_driver_t *dev = (fluid_sdl3_audio_driver_t *)data;
     int buf_len = 0;
 
-    if (dev->buffer == NULL)
-    {
-        FLUID_LOG(FLUID_WARN, "Audio callback buffer is NULL");
-        return;
-    }
-
     while (add_len > 0)
     {
         buf_len = SDL_min(add_len, dev->period_size * dev->frame_size);
-        dev->write_ptr(dev->synth, buf_len / dev->frame_size, dev->buffer, 0, 2, buffer, 1, 2);
+        dev->write_ptr(dev->synth, buf_len / dev->frame_size, dev->buffer, 0, 2, dev->buffer, 1, 2);
         SDL_PutAudioStreamData(stream, dev->buffer, buf_len);
         add_len -= buf_len;  /* subtract what we've just fed the stream. */
     }
@@ -401,6 +395,12 @@ new_fluid_sdl3_audio_driver(fluid_settings_t *settings, fluid_synth_t *synth)
         dev->frame_size = sample_size * aspec.channels;
         dev->period_size = period_size;
         dev->buffer = SDL_malloc(dev->period_size * dev->frame_size);
+
+        if (!dev->buffer)
+        {
+            FLUID_LOG(FLUID_ERR, "Failed to create audio buffer");
+            break;
+        }
 
         /* Open audio device */
         dev->stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &aspec, SDLAudioCallback, dev);
